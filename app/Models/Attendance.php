@@ -24,6 +24,6 @@ class Attendance extends Model
     // Relasi dengan model User
     public function user()
     {
-        return $this->belongsTo(User::class, 'employee_id', 'id'); // Menghubungkan employee_id dengan id di tabel users
+        return $this->belongsTo(User::class, 'employee_id', 'id');
     }
 }

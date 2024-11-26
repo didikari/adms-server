@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\IclockController;
+use App\Livewire\AttendanceReport;
 use App\Livewire\AttendanceTable;
 use App\Livewire\DevicesTable;
 use App\Livewire\FingerLogTable;
@@ -28,6 +29,7 @@ Route::middleware([
     Route::get('/devices', DevicesTable::class)->name('devices');
     Route::delete('/devices/destroy/{id}', [DeviceController::class, 'destroy'])->name('devices.destroy');
     Route::get('/attendance', AttendanceTable::class)->name('attendance');
+    Route::get('/attendance-report', AttendanceReport::class)->name('attendance.report');
     Route::get('/fingerlog', FingerLogTable::class)->name('fingerlog');
     Route::get('/users', UserTable::class)->name('users');
 });

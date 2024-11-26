@@ -64,4 +64,8 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class, 'employee_id'); // employee_id adalah foreign key di Attendance yang merujuk ke User
+    }
 }
