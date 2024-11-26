@@ -45,8 +45,18 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($users as $user) {
-            $email = strtolower(str_replace(' ', '', explode(' ', $user['name'])[0])) . '@example.com';
+            // Generate email
+            $baseEmail = strtolower(str_replace(' ', '', explode(' ', $user['name'])[0])) . '@example.com';
+            $email = $baseEmail;
 
+            // Tambahkan angka jika email sudah ada
+            $counter = 1;
+            while (User::where('email', $email)->exists()) {
+                $email = strtolower(str_replace(' ', '', explode(' ', $user['name'])[0])) . $counter . '@example.com';
+                $counter++;
+            }
+
+            // Simpan atau perbarui data pengguna
             User::updateOrCreate(
                 ['id' => $user['id']],
                 [
