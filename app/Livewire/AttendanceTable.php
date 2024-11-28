@@ -2,22 +2,29 @@
 
 namespace App\Livewire;
 
+use App\Jobs\ProcessAttendanceImport;
 use Rappasoft\LaravelLivewireTables\DataTableComponent;
 use Rappasoft\LaravelLivewireTables\Views\Column;
 use App\Models\Attendance;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
+use Livewire\WithFileUploads;
+use Rappasoft\LaravelLivewireTables\Views\Action;
 
-#[Layout("layouts.app")]
 class AttendanceTable extends DataTableComponent
 {
+    use WithFileUploads;
     protected $model = Attendance::class;
 
     public $title = "Attendance";
+    public $file;
 
     public function configure(): void
     {
         $this->setPrimaryKey('id')
             ->setDefaultSort('id', 'desc');
+        $this->setActionsInToolbarEnabled();
+        $this->setActionsRight();
     }
 
     public function columns(): array
@@ -83,5 +90,41 @@ class AttendanceTable extends DataTableComponent
         $index++;
 
         return $currentIndex;
+    }
+
+    public function importExcel()
+    {
+        $this->validate([
+            'file' => 'required|mimes:xlsx,xls',
+        ]);
+
+        // Simpan file ke storage sementara
+        $filePath = $this->file->store('imports');
+
+        // Pastikan file berhasil disimpan sebelum melanjutkan
+        if (Storage::exists($filePath)) {
+            // Dispatch Job untuk proses impor
+            ProcessAttendanceImport::dispatch(storage_path('app/' . $filePath));
+
+            // Pemberitahuan sukses setelah impor
+            // session()->flash('message', 'File berhasil diimpor!');
+            $this->dispatch('notify', ['type' => 'error', 'message' => 'Tidak ada data absensi']);
+
+
+            // Reset file input
+            $this->reset('file');
+        } else {
+            // Jika file gagal disimpan
+            session()->flash('error', 'Gagal mengunggah file.');
+        }
+    }
+
+
+    public function actions(): array
+    {
+        return [
+            Action::make('Import Excel')
+                ->setView('livewire.buttons.button-import'),
+        ];
     }
 }
