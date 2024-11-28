@@ -57,7 +57,7 @@ class DeviceService
                     }
                 }
 
-                DB::commit();  // Commit transaksi
+                DB::commit();
                 return "OK: " . $totalRecords;
             }
 
@@ -100,7 +100,7 @@ class DeviceService
                 $user = $attendance->user;
                 $name = $user->name;
                 if ($user) {
-                    $this->sendNotification($name);
+                    $this->sendNotification($name, $data[1]);
                 }
 
                 $totalRecords++;
@@ -144,7 +144,7 @@ class DeviceService
         return is_numeric($value) ? (int) $value : null;
     }
 
-    private function sendNotification($name)
+    private function sendNotification($name, $timestamp)
     {
         $loginUrl = env('API_LOGIN_URL');
         $dataUrl = env('API_MESSAGE_URL');
@@ -159,10 +159,11 @@ class DeviceService
         ];
 
         // Data pesan
-        $time = date('H:i:s');  // Waktu saat ini
+        // $time = date('H:i:s');  // Waktu saat ini
+        $time = Carbon::parse($timestamp)->format('H:i:s');  // Format waktu dari timestamp
         $dayOfWeek = date('l');  // Hari saat ini
 
-        $message = getAbsensiMessage($name, $time, $dayOfWeek);
+        $message = $this->getAbsensiMessage($name, $time, $dayOfWeek);
         $data = [
             'chat_id' => $chatId,
             'message_thread_id' => $messageThreadId,
@@ -205,32 +206,37 @@ class DeviceService
     {
         $satpam = "Zainurrohim";
         if ($name == $satpam) {
-            if (checkAbsensiMasuk($time, '17:00:00', '23:59:59')) {
+            if ($this->checkAbsensiMasuk($time, '17:00:00', '23:59:59')) {
                 return $name . ' Melakukan Absensi Masuk Jam ' . $time;
-            } elseif (checkAbsensiPulang($time, '00:00:00', '00:00:00')) {
+            } elseif ($this->checkAbsensiPulang($time, '00:00:00', '00:00:00')) {
                 return $name . ' Melakukan Absensi Pulang Jam ' . $time;
             }
             return $name . ' Waktu absensi tidak valid ' . $time;
         }
 
         if ($dayOfWeek == 'Saturday') {
-            if (checkAbsensiMasuk($time, '06:30:00', '10:00:00')) {
+            if ($this->checkAbsensiMasuk($time, '06:30:00', '10:00:00')) {
                 return $name . ' Melakukan Absensi Masuk Jam ' . $time;
-            } elseif (checkAbsensiPulang($time, '10:01:00', '13:00:00')) {
+            } elseif ($this->checkAbsensiPulang($time, '10:01:00', '13:00:00')) {
                 return $name . ' Melakukan Absensi Pulang Jam ' . $time;
             }
             return $name . ' Waktu absensi tidak valid';
         }
 
         if (in_array($dayOfWeek, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])) {
-            if (checkAbsensiMasuk($time, '06:30:00', '12:00:00')) {
+            if ($this->checkAbsensiMasuk($time, '06:30:00', '12:00:00')) {
                 return $name . ' Melakukan Absensi Masuk Jam ' . $time;
-            } elseif (checkAbsensiPulang($time, '12:01:00', '17:00:00')) {
+            } elseif ($this->checkAbsensiPulang($time, '12:01:00', '17:00:00')) {
                 return $name . ' Melakukan Absensi Pulang Jam ' . $time;
             }
             return $name . ' Waktu absensi tidak valid';
         }
 
         return $name . ' Hari ini bukan hari kerja';
+    }
+
+    public function getrequest(Request $request)
+    {
+        return "OK";
     }
 }

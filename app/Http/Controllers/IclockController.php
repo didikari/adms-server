@@ -23,4 +23,8 @@ class IclockController extends Controller
     {
         return $this->deviceService->receiveRecords($request);
     }
+    public function getRequest(Request $request)
+    {
+        return $this->deviceService->getRequest($request);
+    }
 }

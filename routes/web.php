@@ -10,11 +10,11 @@ use App\Livewire\UserTable;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
 
-
 Route::get('/iclock/cdata', [IclockController::class, 'handshake']);
+Route::get('/iclock/getrequest', [IclockController::class, 'getRequest']);
 Route::post('/iclock/cdata', [IclockController::class, 'receiveRecords']);
 
 Route::middleware([
@@ -22,14 +22,10 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
-
     Route::get('/devices', DevicesTable::class)->name('devices');
     Route::delete('/devices/destroy/{id}', [DeviceController::class, 'destroy'])->name('devices.destroy');
     Route::get('/attendance', AttendanceTable::class)->name('attendance');
-    Route::get('/attendance-report', AttendanceReport::class)->name('attendance.report');
+    Route::get('/my-attendance', AttendanceReport::class)->name('my.attendance');
     Route::get('/fingerlog', FingerLogTable::class)->name('fingerlog');
     Route::get('/users', UserTable::class)->name('users');
 });

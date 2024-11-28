@@ -2,16 +2,20 @@
 
 namespace App\Livewire;
 
+use App\Exports\AttendanceExport;
 use App\Models\Attendance;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AttendanceReport extends Component
 {
-    public $title = "Rekap Attendance";
+    use WithPagination;
+    public $title = "My Attendance";
     public $totalWorkedHours;
 
     public $users; // Daftar pengguna untuk dropdown filter
@@ -19,14 +23,12 @@ class AttendanceReport extends Component
     public $startDate; // Tanggal awal filter
     public $endDate; // Tanggal akhir filter
     public $attendances; // Data absensi
-    public $searchUser = '';  // Properti untuk pencarian user
 
 
     public function mount()
     {
-        // Ambil semua pengguna untuk filter
         $this->users = User::all();
-        $this->attendances = collect(); // Inisialisasi data absensi kosong
+        $this->attendances = collect();
         $this->startDate = now()->startOfMonth()->format('Y-m-d');
         $this->endDate = now()->format('Y-m-d'); // Default tanggal akhir hari ini
         view()->share('title', $this->title);
@@ -178,6 +180,8 @@ class AttendanceReport extends Component
         // Simpan jam kerja pada absensi
         $attendance = $groupedAttendances->first(); // Ambil absensi pertama
         $attendance->hoursWorked = $duration;
+        $attendance->scanIn = Carbon::parse($entry->created_at)->format('H:i'); // Jam masuk
+        $attendance->scanOut = Carbon::parse($exit->created_at)->format('H:i');   // Jam pulang
 
         return $attendance;
     }
@@ -213,6 +217,20 @@ class AttendanceReport extends Component
             $hours = (float) filter_var($duration, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
             $totalWorkedHours += $hours;
         }
+    }
+
+    public function export()
+    {
+        $this->filter();
+        if ($this->attendances->isEmpty()) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => 'Tidak ada data untuk diekspor',
+            ]);
+            return;
+        }
+
+        return Excel::download(new AttendanceExport($this->attendances), 'attendance-report.xlsx');
     }
 
 
