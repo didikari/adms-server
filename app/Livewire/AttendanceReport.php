@@ -124,9 +124,10 @@ class AttendanceReport extends Component
     private function getFilteredAttendanceQuery($startDate, $endDate)
     {
         return Attendance::query()
-            ->when($this->startDate, fn($query) => $query->whereDate('created_at', '>=', $startDate))
-            ->when($this->endDate, fn($query) => $query->whereDate('created_at', '<=', $endDate))
-            ->when($this->selectedUser, fn($query) => $query->where('employee_id', $this->selectedUser));
+            ->when($this->startDate, fn($query) => $query->whereDate('timestamp', '>=', $startDate))
+            ->when($this->endDate, fn($query) => $query->whereDate('timestamp', '<=', $endDate))
+            ->when($this->selectedUser, fn($query) => $query->where('employee_id', $this->selectedUser))
+            ->orderByRaw('YEAR(timestamp), MONTH(timestamp), DAY(timestamp)');
     }
 
     /**
@@ -145,11 +146,11 @@ class AttendanceReport extends Component
         // Tentukan pengelompokan berdasarkan selectedUser atau employee_id
         if (!$this->selectedUser) {
             $this->attendances = $this->attendances->groupBy(function ($attendance) {
-                return $attendance->employee_id . '|' . $attendance->created_at->toDateString(); // Grupkan berdasarkan employee_id dan tanggal
+                return $attendance->employee_id . '|' . $this->getFormattedDate($attendance->timestamp); // Grupkan berdasarkan employee_id dan tanggal
             });
         } else {
             $this->attendances = $this->attendances->groupBy(function ($attendance) {
-                return $attendance->created_at->toDateString(); // Grupkan hanya berdasarkan tanggal
+                return $this->getFormattedDate($attendance->timestamp); // Grupkan hanya berdasarkan tanggal
             });
         }
 
@@ -165,8 +166,8 @@ class AttendanceReport extends Component
     private function processAttendanceGroup($groupedAttendances, &$totalWorkedHours)
     {
         // Ambil entri absensi masuk dan pulang
-        $entry = $groupedAttendances->where('status1', 0)->sortBy('created_at')->first();
-        $exit = $groupedAttendances->where('status1', 1)->sortByDesc('created_at')->last();
+        $entry = $groupedAttendances->where('status1', 0)->sortBy('timestamp')->first();
+        $exit = $groupedAttendances->where('status1', 1)->sortByDesc('timestamp')->last();
 
         // Jika tidak ada absensi masuk atau pulang, abaikan grup ini
         if (!$entry || !$exit) {
@@ -178,10 +179,10 @@ class AttendanceReport extends Component
         $this->updateTotalWorkedHours($duration, $totalWorkedHours);
 
         // Simpan jam kerja pada absensi
-        $attendance = $groupedAttendances->first(); // Ambil absensi pertama
+        $attendance = $groupedAttendances->first();
         $attendance->hoursWorked = $duration;
-        $attendance->scanIn = Carbon::parse($entry->created_at)->format('H:i'); // Jam masuk
-        $attendance->scanOut = Carbon::parse($exit->created_at)->format('H:i');   // Jam pulang
+        $attendance->scanIn = Carbon::parse($entry->timestamp)->format('H:i');
+        $attendance->scanOut = Carbon::parse($exit->timestamp)->format('H:i');
 
         return $attendance;
     }
@@ -191,12 +192,12 @@ class AttendanceReport extends Component
      */
     private function calculateWorkedDuration($entry, $exit)
     {
-        $start = Carbon::parse($entry->created_at);
+        $start = Carbon::parse($entry->timestamp);
         if ($start->format('H:i') < '07:00') {
             $start = $start->setTime(7, 0, 0); // Set jam masuk menjadi 07:00 jika lebih awal
         }
 
-        $end = Carbon::parse($exit->created_at);
+        $end = Carbon::parse($exit->timestamp);
         if ($end->format('H:i') > '17:00') {
             $end = $end->setTime(17, 0, 0); // Set jam pulang menjadi 17:00 jika lebih dari itu
         }

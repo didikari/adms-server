@@ -8,10 +8,9 @@ use App\Models\Device;
 use Livewire\Attributes\Layout;
 
 
-#[Layout('layouts.app')]
-class DevicesTable extends DataTableComponent
+class DevicesTable extends BaseTableComponent
 {
-    public $title = 'Devices';  // Contoh nilai default
+    public $title = 'Devices';
     protected $model = Device::class;
 
     public $deviceId, $name, $sn, $online;
@@ -34,20 +33,16 @@ class DevicesTable extends DataTableComponent
     {
         return [
             Column::make('No')
-                ->label(
-                    fn($row, Column $column) => $this->getNumber($row, $column)
-                ),
-            Column::make("Id", "id")
-                ->searchable(),
-            Column::make("Name", "name")
-                ->searchable(),
-            Column::make("Sn", "sn")
-                ->searchable(),
-            Column::make("Online", "online")
+                ->label(fn($row, Column $column) => $this->getNumber($row, $column))
+                ->collapseOnMobile(),
+            $this->searchableColumn('Id', 'id'),
+            Column::make('Name', 'name'),
+            $this->searchableColumn('Sn', 'sn'),
+            $this->searchableColumn('Online', 'online')
                 ->sortable(),
-            Column::make("Created at", "created_at")
+            $this->searchableColumn('Created at', 'created_at')
                 ->sortable(),
-            Column::make("Updated at", "updated_at")
+            $this->searchableColumn('Updated at', 'updated_at')
                 ->sortable(),
             Column::make('Action')
                 ->label(
@@ -65,17 +60,5 @@ class DevicesTable extends DataTableComponent
     public function mount()
     {
         view()->share('title', $this->title);
-    }
-    public function getNumber($row)
-    {
-        static $index = 1;
-
-        $page = $this->getPage();
-        $perPage = $this->getPerPage();
-
-        $currentIndex = ($page - 1) * $perPage + $index;
-        $index++;
-
-        return $currentIndex;
     }
 }

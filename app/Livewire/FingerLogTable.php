@@ -9,8 +9,7 @@ use Livewire\Attributes\Layout;
 use Rappasoft\LaravelLivewireTables\Views\Action;
 use Rappasoft\LaravelLivewireTables\Views\Columns\BooleanColumn;
 
-#[Layout("layouts.app")]
-class FingerLogTable extends DataTableComponent
+class FingerLogTable extends BaseTableComponent
 {
     protected $model = FingerLog::class;
     public $title = "Finger Log";
@@ -29,16 +28,11 @@ class FingerLogTable extends DataTableComponent
                 ->label(
                     fn($row, Column $column) => $this->getNumber($row, $column)
                 ),
-            Column::make("Id", "id")
-                ->searchable(),
-            Column::make("Data", "data")
-                ->sortable(),
-            Column::make("Url", "url")
-                ->sortable(),
-            Column::make("Created at", "created_at")
-                ->sortable(),
-            Column::make("Updated at", "updated_at")
-                ->sortable(),
+            $this->searchableColumn('Id', 'id'),
+            $this->searchableColumn('Data', 'data'),
+            $this->searchableColumn('Url', 'url'),
+            $this->searchableColumn('Created at', 'created_at'),
+            $this->searchableColumn('Updated at', 'updated_at'),
             Column::make('Action')
                 ->label(
                     fn($row, Column $column) => view('livewire.datatables.action-column')->with(
@@ -55,18 +49,5 @@ class FingerLogTable extends DataTableComponent
     public function mount()
     {
         view()->share('title', $this->title);
-    }
-
-    public function getNumber($row)
-    {
-        static $index = 1;
-
-        $page = $this->getPage();
-        $perPage = $this->getPerPage();
-
-        $currentIndex = ($page - 1) * $perPage + $index;
-        $index++;
-
-        return $currentIndex;
     }
 }

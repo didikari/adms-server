@@ -6,90 +6,63 @@ use App\Jobs\ProcessAttendanceImport;
 use Rappasoft\LaravelLivewireTables\DataTableComponent;
 use Rappasoft\LaravelLivewireTables\Views\Column;
 use App\Models\Attendance;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\WithFileUploads;
 use Rappasoft\LaravelLivewireTables\Views\Action;
 
-class AttendanceTable extends DataTableComponent
+class AttendanceTable extends BaseTableComponent
 {
     use WithFileUploads;
     protected $model = Attendance::class;
 
     public $title = "Attendance";
     public $file;
+    protected $listeners = ['notify' => '$refresh'];
 
     public function configure(): void
     {
         $this->setPrimaryKey('id')
-            ->setDefaultSort('id', 'desc');
-        $this->setActionsInToolbarEnabled();
-        $this->setActionsRight();
+            ->setDefaultSort('id', 'desc')
+            ->setActionsInToolbarEnabled();
     }
 
     public function columns(): array
     {
         return [
             Column::make('No')
-                ->label(
-                    fn($row, Column $column) => $this->getNumber($row, $column)
-                ),
+                ->label(fn($row, Column $column) => $this->getNumber($row, $column))
+                ->collapseOnMobile(),
             Column::make('Nama', 'user.name'),
-            Column::make("Id", "id")
-                ->searchable(),
-            Column::make("Sn", "sn")
-                ->searchable(),
-            Column::make("Table", "table")
-                ->searchable(),
-            Column::make("Stamp", "stamp")
-                ->searchable(),
-            Column::make("Employee id", "employee_id")
-                ->searchable(),
-            Column::make("Timestamp", "timestamp")
-                ->searchable(),
-            Column::make("Status1", "status1")
-                ->searchable(),
-            Column::make("Status2", "status2")
-                ->searchable(),
-            Column::make("Status3", "status3")
-                ->searchable(),
-            Column::make("Status4", "status4")
-                ->searchable(),
-            Column::make("Status5", "status5")
-                ->searchable(),
-            Column::make("Created at", "created_at")
-                ->searchable(),
-            Column::make("Updated at", "updated_at")
-                ->searchable(),
+            $this->searchableColumn('Id', 'id'),
+            $this->searchableColumn('Sn', 'sn'),
+            $this->searchableColumn('Table', 'table'),
+            $this->searchableColumn('Stamp', 'stamp'),
+            $this->searchableColumn('Employee id', 'employee_id'),
+            $this->searchableColumn('Timestamp', 'timestamp'),
+            $this->searchableColumn('Status1', 'status1'),
+            $this->searchableColumn('Status2', 'status2'),
+            $this->searchableColumn('Status3', 'status3'),
+            $this->searchableColumn('Status4', 'status4'),
+            $this->searchableColumn('Status5', 'status5'),
+            $this->searchableColumn('Created at', 'created_at'),
+            $this->searchableColumn('Updated at', 'updated_at'),
             Column::make('Action')
-                ->label(
-                    fn($row, Column $column) => view('livewire.datatables.action-column')->with(
-                        [
-                            'viewLink' => route('attendance', $row),
-                            'editLink' => route('attendance', $row),
-                            'deleteLink' => route('attendance', $row),
-                        ]
-                    )
-                )->html(),
+                ->label(fn($row, Column $column) => view('livewire.datatables.action-column')->with([
+                    'viewLink' => route('attendance', $row),
+                    'editLink' => route('attendance', $row),
+                    'deleteLink' => route('attendance', $row),
+                ]))
+                ->html(),
         ];
     }
 
     public function mount()
     {
         view()->share('title', $this->title);
-    }
-
-    public function getNumber($row)
-    {
-        static $index = 1;
-
-        $page = $this->getPage();
-        $perPage = $this->getPerPage();
-
-        $currentIndex = ($page - 1) * $perPage + $index;
-        $index++;
-
-        return $currentIndex;
+        $this->dispatch('refresh');
     }
 
     public function importExcel()
@@ -98,24 +71,24 @@ class AttendanceTable extends DataTableComponent
             'file' => 'required|mimes:xlsx,xls',
         ]);
 
-        // Simpan file ke storage sementara
-        $filePath = $this->file->store('imports');
+        $filePath = $this->file->store('imports', 'public');
 
-        // Pastikan file berhasil disimpan sebelum melanjutkan
-        if (Storage::exists($filePath)) {
-            // Dispatch Job untuk proses impor
-            ProcessAttendanceImport::dispatch(storage_path('app/' . $filePath));
+        if (Storage::disk('public')->exists($filePath)) {
+            ProcessAttendanceImport::dispatch($filePath);
 
-            // Pemberitahuan sukses setelah impor
-            // session()->flash('message', 'File berhasil diimpor!');
-            $this->dispatch('notify', ['type' => 'error', 'message' => 'Tidak ada data absensi']);
+            $fileUrl = Storage::url($filePath);
 
+            $this->dispatch('notify', [
+                'type' => 'success',
+                'message' => "Proses impor data absensi telah dimulai.",
+            ]);
 
-            // Reset file input
             $this->reset('file');
         } else {
-            // Jika file gagal disimpan
-            session()->flash('error', 'Gagal mengunggah file.');
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => "Gagal mengunggah file!",
+            ]);
         }
     }
 

@@ -2,13 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Events\AttendanceImported;
 use App\Imports\AttendanceImport;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProcessAttendanceImport implements ShouldQueue
@@ -32,28 +33,12 @@ class ProcessAttendanceImport implements ShouldQueue
      */
     public function handle(): void
     {
-        try {
-            // Log message before import to track the process
-            Log::info('Starting attendance import', ['file' => $this->filePath]);
+        $filePath = Storage::disk('public')->path($this->filePath);
 
-            // Import the Excel file using AttendanceImport
-            Excel::import(new AttendanceImport, $this->filePath);
+        // Proses import Excel
+        Excel::import(new AttendanceImport, $filePath);
 
-            // Log successful import
-            Log::info('Attendance import successful', ['file' => $this->filePath]);
-
-            // Optionally delete the file after processing
-            if (file_exists($this->filePath)) {
-                unlink($this->filePath);
-                Log::info('File deleted after import', ['file' => $this->filePath]);
-            }
-        } catch (\Exception $e) {
-            // Log the error with detailed information
-            Log::error('Attendance import failed', [
-                'error' => $e->getMessage(),
-                'file' => $this->filePath,  // Use the correct file variable
-                'stack_trace' => $e->getTraceAsString(),
-            ]);
-        }
+        $message = "Proses import absensi selesai";
+        event(new AttendanceImported($message));
     }
 }

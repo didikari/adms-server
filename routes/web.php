@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\AttendanceImported;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\IclockController;
 use App\Livewire\AttendanceReport;

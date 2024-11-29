@@ -54,7 +54,7 @@
                         <td class="py-4 px-6 text-sm text-gray-800">{{ $loop->iteration }}</td>
                         <td class="py-4 px-6 text-sm text-gray-800">{{ $attendance->user->name }}</td>
                         <td class="py-4 px-6 text-sm text-gray-800">
-                            {{ \Carbon\Carbon::parse($attendance->created_at)->format('Y-m-d') }}</td>
+                            {{ \Carbon\Carbon::parse($attendance->timestamp)->format('Y-m-d') }}</td>
                         <td>{{ $attendance->scanIn }}</td>
                         <td>{{ $attendance->scanOut }}</td>
                         <!-- Menampilkan Durasi Kerja -->
