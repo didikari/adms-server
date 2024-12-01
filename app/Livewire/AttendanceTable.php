@@ -26,16 +26,16 @@ class AttendanceTable extends BaseTableComponent
     {
         $this->setPrimaryKey('id')
             ->setDefaultSort('id', 'desc')
-            ->setActionsInToolbarEnabled();
+            ->setActionsInToolbarEnabled()
+            ->setPerPageAccepted([10, 25, 50, 100, 200, 500, 1000]);
     }
 
     public function columns(): array
     {
         return [
             Column::make('No')
-                ->label(fn($row, Column $column) => $this->getNumber($row, $column))
-                ->collapseOnMobile(),
-            Column::make('Nama', 'user.name'),
+                ->label(fn($row, Column $column) => $this->getNumber($row, $column)),
+            $this->searchableColumn('Nama', 'userByFingerId.name'),
             $this->searchableColumn('Id', 'id'),
             $this->searchableColumn('Sn', 'sn'),
             $this->searchableColumn('Table', 'table'),
@@ -79,7 +79,7 @@ class AttendanceTable extends BaseTableComponent
             $fileUrl = Storage::url($filePath);
 
             $this->dispatch('notify', [
-                'type' => 'success',
+                'type' => 'progress',
                 'message' => "Proses impor data absensi telah dimulai.",
             ]);
 
