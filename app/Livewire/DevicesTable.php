@@ -15,7 +15,6 @@ class DevicesTable extends BaseTableComponent
 
     public $deviceId, $name, $sn, $online;
 
-    // Validasi data
     protected $rules = [
         'name' => 'required|string|max:255',
         'sn' => 'required|string|max:255',
@@ -33,8 +32,7 @@ class DevicesTable extends BaseTableComponent
     {
         return [
             Column::make('No')
-                ->label(fn($row, Column $column) => $this->getNumber($row, $column))
-                ->collapseOnMobile(),
+                ->label(fn($row, Column $column) => $this->getNumber($row, $column)),
             $this->searchableColumn('Id', 'id'),
             Column::make('Name', 'name'),
             $this->searchableColumn('Sn', 'sn'),
