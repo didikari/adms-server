@@ -2,15 +2,18 @@
 
 namespace App\Livewire;
 
+use App\Exports\UsersExport;
 use Rappasoft\LaravelLivewireTables\DataTableComponent;
 use Rappasoft\LaravelLivewireTables\Views\Column;
 use App\Models\User;
 use Livewire\Attributes\Layout;
+use Maatwebsite\Excel\Facades\Excel;
+use Rappasoft\LaravelLivewireTables\Views\Action;
 use Rappasoft\LaravelLivewireTables\Views\Columns\ButtonGroupColumn;
 use Rappasoft\LaravelLivewireTables\Views\Columns\LinkColumn;
+use Rappasoft\LaravelLivewireTables\Views\Columns\WireLinkColumn;
 
-#[Layout("layouts.app")]
-class UserTable extends DataTableComponent
+class UserTable extends BaseTableComponent
 {
     protected $model = User::class;
     public $title = "Users";
@@ -29,7 +32,7 @@ class UserTable extends DataTableComponent
                 ->label(
                     fn($row, Column $column) => $this->getNumber($row, $column)
                 ),
-            Column::make("Id", "id")
+            Column::make("ID", "id")
                 ->searchable(),
             Column::make("Name", "name")
                 ->searchable(),
@@ -40,58 +43,31 @@ class UserTable extends DataTableComponent
             Column::make("Updated at", "updated_at")
                 ->sortable(),
             Column::make('Action')
-                ->label(
-                    fn($row, Column $column) => view('livewire.datatables.action-column')->with(
-                        [
-                            'viewLink' => route('users', $row),
-                            'editLink' => route('users', $row),
-                            'deleteLink' => route('users', $row),
-                        ]
-                    )
-                )->html(),
+                ->label(function ($row, Column $column) {
+                    return view('livewire.datatables.action-column')->with([
+                        'editLink' => route('users.edit', $row),
+                        'deleteLink' => route('users', $row),
+                    ]);
+                })->html(),
+
         ];
     }
 
     public function exportSelected()
     {
-        // Ambil data yang dipilih
         $selected = $this->getSelected();
 
-        // Pastikan ada data yang dipilih
         if (empty($selected)) {
             $this->dispatch('notify', ['type' => 'error', 'message' => 'No rows selected!']);
             return;
         }
 
-        // Lakukan aksi ekspor (misalnya CSV atau Excel)
-        return response()->streamDownload(function () use ($selected) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['ID', 'Name', 'Email']); // Header kolom
-
-            foreach (User::whereIn('id', $selected)->get() as $user) {
-                fputcsv($handle, [$user->id, $user->name, $user->email]);
-            }
-
-            fclose($handle);
-        }, 'users-export.csv');
+        return Excel::download(new UsersExport($selected), 'users-export.xlsx');
     }
 
 
     public function mount()
     {
         view()->share('title', $this->title);
-    }
-
-    public function getNumber($row)
-    {
-        static $index = 1;
-
-        $page = $this->getPage();
-        $perPage = $this->getPerPage();
-
-        $currentIndex = ($page - 1) * $perPage + $index;
-        $index++;
-
-        return $currentIndex;
     }
 }
