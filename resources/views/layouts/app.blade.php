@@ -69,7 +69,6 @@
         <script type="module">
             Echo.channel('attendance')
                 .listen('.imported', (event) => {
-                    console.log('Pusher event received:', event.message);
                     toastr.success(event.message);
                 });
         </script>
@@ -77,10 +76,15 @@
         <script>
             document.addEventListener('livewire:init', () => {
                 Livewire.on('notify', (data) => {
-                    if (data[0].type === 'error') {
-                        toastr.error(data[0].message); // Menampilkan notifikasi error
-                    } else {
-                        toastr.success(data[0].message); // Defaultnya menggunakan success
+                    switch (data[0].type) {
+                        case 'error':
+                            toastr.error(data[0].message);
+                            break;
+                        case 'progress':
+                            toastr.info(data[0].message);
+                            break;
+                        default:
+                            toastr.success(data[0].message);
                     }
                 });
             });
