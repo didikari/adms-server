@@ -8,7 +8,7 @@
                 <option value="">All User</option>
                 @foreach ($users as $user)
                     @if (empty($searchUser) || stripos($user->name, $searchUser) !== false)
-                        <option value="{{ $user->id }}">{{ $user->name }}</option>
+                        <option value="{{ $user->finger_id }}">{{ $user->name }}</option>
                     @endif
                 @endforeach
             </select>
@@ -17,14 +17,14 @@
         <!-- Filter: Tanggal Mulai -->
         <div>
             <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">Tanggal Mulai</label>
-            <input type="date" id="startDate" wire:model="startDate"
+            <input type="date" id="startDate" wire:model="startDate" value="{{ $startDate }}"
                 class="block w-full p-3 rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
         </div>
 
         <!-- Filter: Tanggal Akhir -->
         <div>
             <label for="endDate" class="block text-sm font-medium text-gray-700 mb-2">Tanggal Akhir</label>
-            <input type="date" id="endDate" wire:model="endDate"
+            <input type="date" id="endDate" wire:model="endDate" value="{{ $endDate }}"
                 class="block w-full p-3 rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
         </div>
     </div>
@@ -52,7 +52,7 @@
                 @forelse($attendances as $attendance)
                     <tr class="border-b hover:bg-gray-50">
                         <td class="py-4 px-6 text-sm text-gray-800">{{ $loop->iteration }}</td>
-                        <td class="py-4 px-6 text-sm text-gray-800">{{ $attendance->user->name }}</td>
+                        <td class="py-4 px-6 text-sm text-gray-800">{{ $attendance->userByFingerId->name }}</td>
                         <td class="py-4 px-6 text-sm text-gray-800">
                             {{ \Carbon\Carbon::parse($attendance->timestamp)->format('Y-m-d') }}</td>
                         <td>{{ $attendance->scanIn }}</td>

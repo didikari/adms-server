@@ -6,8 +6,6 @@ use App\Exports\AttendanceExport;
 use App\Models\Attendance;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
@@ -15,77 +13,47 @@ use Maatwebsite\Excel\Facades\Excel;
 class AttendanceReport extends Component
 {
     use WithPagination;
+
     public $title = "My Attendance";
     public $totalWorkedHours;
-
-    public $users; // Daftar pengguna untuk dropdown filter
-    public $selectedUser; // ID pengguna yang dipilih
-    public $startDate; // Tanggal awal filter
-    public $endDate; // Tanggal akhir filter
-    public $attendances; // Data absensi
-
+    public $users;
+    public $selectedUser;
+    public $startDate;
+    public $endDate;
+    public $attendances;
 
     public function mount()
     {
-        $this->users = User::all();
-        $this->attendances = collect();
-        $this->startDate = now()->startOfMonth()->format('Y-m-d');
-        $this->endDate = now()->format('Y-m-d'); // Default tanggal akhir hari ini
+        $this->initializeProperties();
         view()->share('title', $this->title);
     }
 
     public function filter()
     {
-        $this->resetTotalWorkedHours(); // Reset total jam kerja
-        $this->validateFilters(); // Validasi filter tanggal
+        $this->resetPage();
+        $this->resetTotalWorkedHours();
+        $this->validateFilters();
 
-        // Cek jika tanggal mulai lebih besar dari tanggal akhir
         if ($this->isInvalidDateRange()) {
-            return; // Stop eksekusi jika tanggal tidak valid
+            return;
         }
 
         try {
-            // Format tanggal untuk query
-            $startDate = $this->getFormattedDate($this->startDate);
-            $endDate = $this->getFormattedDate($this->endDate);
-
-            // Ambil data absensi sesuai filter
-            $query = $this->getFilteredAttendanceQuery($startDate, $endDate);
-
-            // Ambil data absensi berdasarkan query
-            $this->attendances = $query->get();
-
-            // Jika tidak ada data, tampilkan pesan error
-            if ($this->attendances->isEmpty()) {
-                $this->dispatchNoDataError();
-                return;
-            }
-
-            $totalWorkedHours = 0;
-
-            // Grupkan data absensi berdasarkan kondisi
-            $this->groupAttendances($totalWorkedHours);
-
-            // Update total jam kerja jika individu dipilih
-            if ($this->selectedUser) {
-                $this->totalWorkedHours = number_format($totalWorkedHours, 2);
-            }
+            $this->fetchAttendances();
+            $this->processAttendances();
         } catch (\Exception $e) {
             $this->dispatchNoDataError();
         }
     }
 
-    /**
-     * Reset total jam kerja
-     */
-    private function resetTotalWorkedHours()
+    private function initializeProperties()
     {
-        $this->totalWorkedHours = null;
+        $this->users = User::all();
+        $this->attendances = collect();
+        $this->startDate = now()->startOfMonth()->format('Y-m-d');
+        $this->endDate = now()->format('Y-m-d');
     }
 
-    /**
-     * Validasi input tanggal
-     */
     private function validateFilters()
     {
         $this->validate([
@@ -94,33 +62,42 @@ class AttendanceReport extends Component
         ]);
     }
 
-    /**
-     * Cek apakah tanggal mulai lebih besar dari tanggal akhir
-     */
     private function isInvalidDateRange()
     {
         if ($this->startDate > $this->endDate) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Tanggal mulai tidak boleh lebih besar dari tanggal akhir.'
-            ]);
-            $this->attendances = collect(); // Reset data absensi
+            $this->dispatchErrorMessage('Tanggal mulai tidak boleh lebih besar dari tanggal akhir.');
             return true;
         }
         return false;
     }
 
-    /**
-     * Format tanggal yang diberikan menjadi format Y-m-d
-     */
+    private function fetchAttendances()
+    {
+        $startDate = $this->getFormattedDate($this->startDate);
+        $endDate = $this->getFormattedDate($this->endDate);
+
+        $this->attendances = $this->getFilteredAttendanceQuery($startDate, $endDate)->get();
+        if ($this->attendances->isEmpty()) {
+            $this->dispatchNoDataError();
+        }
+    }
+
+    private function processAttendances()
+    {
+        $totalWorkedHours = 0;
+
+        $this->groupAttendances($totalWorkedHours);
+
+        if ($this->selectedUser) {
+            $this->totalWorkedHours = number_format($totalWorkedHours, 2);
+        }
+    }
+
     private function getFormattedDate($date)
     {
         return Carbon::parse($date)->format('Y-m-d');
     }
 
-    /**
-     * Ambil query absensi berdasarkan filter tanggal dan selectedUser
-     */
     private function getFilteredAttendanceQuery($startDate, $endDate)
     {
         return Attendance::query()
@@ -130,55 +107,36 @@ class AttendanceReport extends Component
             ->orderByRaw('YEAR(timestamp), MONTH(timestamp), DAY(timestamp)');
     }
 
-    /**
-     * Menangani error jika tidak ada data absensi yang ditemukan
-     */
-    private function dispatchNoDataError()
-    {
-        $this->dispatch('notify', ['type' => 'error', 'message' => 'Tidak ada data absensi']);
-    }
-
-    /**
-     * Grupkan data absensi berdasarkan kondisi
-     */
     private function groupAttendances(&$totalWorkedHours)
     {
-        // Tentukan pengelompokan berdasarkan selectedUser atau employee_id
-        if (!$this->selectedUser) {
-            $this->attendances = $this->attendances->groupBy(function ($attendance) {
-                return $attendance->employee_id . '|' . $this->getFormattedDate($attendance->timestamp); // Grupkan berdasarkan employee_id dan tanggal
-            });
-        } else {
-            $this->attendances = $this->attendances->groupBy(function ($attendance) {
-                return $this->getFormattedDate($attendance->timestamp); // Grupkan hanya berdasarkan tanggal
-            });
-        }
+        $this->attendances = $this->attendances->groupBy(function ($attendance) {
+            return $this->getAttendanceGroupKey($attendance);
+        });
 
-        // Proses penghitungan jam kerja untuk setiap grup absensi
         $this->attendances = $this->attendances->map(function ($groupedAttendances) use (&$totalWorkedHours) {
             return $this->processAttendanceGroup($groupedAttendances, $totalWorkedHours);
-        })->filter(); // Hapus data yang null
+        })->filter();
     }
 
-    /**
-     * Proses setiap grup absensi untuk menghitung durasi kerja
-     */
+    private function getAttendanceGroupKey($attendance)
+    {
+        return $this->selectedUser
+            ? $this->getFormattedDate($attendance->timestamp)
+            : $attendance->employee_id . '|' . $this->getFormattedDate($attendance->timestamp);
+    }
+
     private function processAttendanceGroup($groupedAttendances, &$totalWorkedHours)
     {
-        // Ambil entri absensi masuk dan pulang
         $entry = $groupedAttendances->where('status1', 0)->sortBy('timestamp')->first();
         $exit = $groupedAttendances->where('status1', 1)->sortByDesc('timestamp')->last();
 
-        // Jika tidak ada absensi masuk atau pulang, abaikan grup ini
         if (!$entry || !$exit) {
             return null;
         }
 
-        // Hitung durasi kerja
         $duration = $this->calculateWorkedDuration($entry, $exit);
         $this->updateTotalWorkedHours($duration, $totalWorkedHours);
 
-        // Simpan jam kerja pada absensi
         $attendance = $groupedAttendances->first();
         $attendance->hoursWorked = $duration;
         $attendance->scanIn = Carbon::parse($entry->timestamp)->format('H:i');
@@ -187,58 +145,73 @@ class AttendanceReport extends Component
         return $attendance;
     }
 
-    /**
-     * Menghitung durasi kerja berdasarkan jam masuk dan pulang
-     */
     private function calculateWorkedDuration($entry, $exit)
     {
-        $start = Carbon::parse($entry->timestamp);
-        if ($start->format('H:i') < '07:00') {
-            $start = $start->setTime(7, 0, 0); // Set jam masuk menjadi 07:00 jika lebih awal
-        }
+        $start = Carbon::parse($entry->timestamp)->format('H:i') < '07:00'
+            ? Carbon::parse($entry->timestamp)->setTime(7, 0, 0)
+            : Carbon::parse($entry->timestamp);
 
-        $end = Carbon::parse($exit->timestamp);
-        if ($end->format('H:i') > '17:00') {
-            $end = $end->setTime(17, 0, 0); // Set jam pulang menjadi 17:00 jika lebih dari itu
-        }
+        $end = Carbon::parse($exit->timestamp)->format('H:i') > '17:00'
+            ? Carbon::parse($exit->timestamp)->setTime(17, 0, 0)
+            : Carbon::parse($exit->timestamp);
 
-        $durationInMinutes = $start->diffInMinutes($end);
-        $durationInHours = floor($durationInMinutes / 60);
-        $remainingMinutes = $durationInMinutes % 60;
-
-        return number_format($durationInHours + ($remainingMinutes / 60), 2) . ' Jam';
+        return $this->formatDuration($start->diffInMinutes($end));
     }
 
-    /**
-     * Update total jam kerja jika individu dipilih
-     */
+    private function formatDuration($durationInMinutes)
+    {
+        $hours = floor($durationInMinutes / 60);
+        $minutes = $durationInMinutes % 60;
+
+        return number_format($hours + ($minutes / 60), 2) . ' Jam';
+    }
+
     private function updateTotalWorkedHours($duration, &$totalWorkedHours)
     {
         if ($this->selectedUser) {
-            $hours = (float) filter_var($duration, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
-            $totalWorkedHours += $hours;
+            $totalWorkedHours += (float) filter_var($duration, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
         }
+    }
+
+    private function resetTotalWorkedHours()
+    {
+        $this->totalWorkedHours = null;
+    }
+
+
+    private function dispatchErrorMessage($message)
+    {
+        $this->dispatch('notify', ['type' => 'error', 'message' => $message]);
+        $this->attendances = collect();
+    }
+
+    private function dispatchNoDataError()
+    {
+        $this->dispatch('notify', ['type' => 'error', 'message' => 'Tidak ada data absensi']);
     }
 
     public function export()
     {
         $this->filter();
+
         if ($this->attendances->isEmpty()) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Tidak ada data untuk diekspor',
-            ]);
+            $this->dispatchErrorMessage('Tidak ada data untuk diekspor');
             return;
         }
 
-        return Excel::download(new AttendanceExport($this->attendances), 'attendance-report.xlsx');
+        return Excel::download(new AttendanceExport($this->attendances, $this->selectedUser ? true : false), $this->generateFileName());
     }
 
+    private function generateFileName()
+    {
+        $userName = $this->selectedUser ? User::where('finger_id', $this->selectedUser)->value('name') : 'All_Users';
+        return "Attendance_Report_{$userName}_" . Carbon::now()->format('Y-m-d') . ".xlsx";
+    }
 
     public function render()
     {
         return view('livewire.attendance-report', [
-            'attendances' => $this->attendances,
+            'attendances' => $this->attendances
         ]);
     }
 }

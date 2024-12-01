@@ -26,4 +26,9 @@ class Attendance extends Model
     {
         return $this->belongsTo(User::class, 'employee_id', 'id');
     }
+
+    public function userByFingerId()
+    {
+        return $this->belongsTo(User::class, 'employee_id', 'finger_id');
+    }
 }
